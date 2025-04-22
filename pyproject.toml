@@ -1,0 +1,11 @@
+[project]
+name = "group-project-be"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11.11"
+dependencies = [
+    "bcrypt>=4.3.0",
+    "flask>=3.1.0",
+    "sqlalchemy>=2.0.40",
+]
