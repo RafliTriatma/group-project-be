@@ -17,6 +17,9 @@ def create_app(config_name='default'):
     JWTManager(app)
     init_db(app)
     
+    # Import models to ensure they are registered with SQLAlchemy
+    from app import models
+    
     # Register blueprints
     from app.routes import main_bp
     app.register_blueprint(main_bp)

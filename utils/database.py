@@ -1,13 +1,24 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import event
+from sqlalchemy import event, MetaData
 from sqlalchemy.engine import Engine
 from sqlite3 import Connection as SQLite3Connection
+from flask_migrate import Migrate
 import logging
 from datetime import datetime
 import uuid
 
-# Initialize SQLAlchemy
-db = SQLAlchemy()
+# Define naming convention for constraints
+convention = {
+    "ix": 'ix_%(column_0_label)s',
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s"
+}
+
+# Initialize SQLAlchemy with naming convention
+db = SQLAlchemy(metadata=MetaData(naming_convention=convention))
+migrate = Migrate()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -16,12 +27,15 @@ logger = logging.getLogger(__name__)
 def init_db(app):
     """Initialize the database with the Flask app."""
     try:
-        # Initialize SQLAlchemy with app
+        # Initialize SQLAlchemy with the app
         db.init_app(app)
+        
+        # Initialize Flask-Migrate
+        migrate.init_app(app, db)
         
         # Enable foreign key support for SQLite
         @event.listens_for(Engine, "connect")
-        def _set_sqlite_pragma(dbapi_connection, connection_record):
+        def set_sqlite_pragma(dbapi_connection, connection_record):
             if isinstance(dbapi_connection, SQLite3Connection):
                 cursor = dbapi_connection.cursor()
                 cursor.execute("PRAGMA foreign_keys=ON;")
@@ -30,8 +44,8 @@ def init_db(app):
         # Create all tables
         with app.app_context():
             db.create_all()
-            logger.info("Database initialized successfully")
             
+        logger.info("Database initialized successfully")
     except Exception as e:
         logger.error(f"Error initializing database: {str(e)}")
         raise
@@ -45,7 +59,7 @@ class BaseModel(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def save(self):
-        """Save the model instance."""
+        """Save the model instance to the database."""
         try:
             db.session.add(self)
             db.session.commit()
@@ -56,7 +70,7 @@ class BaseModel(db.Model):
             return False
     
     def delete(self):
-        """Delete the model instance."""
+        """Delete the model instance from the database."""
         try:
             db.session.delete(self)
             db.session.commit()
@@ -68,12 +82,12 @@ class BaseModel(db.Model):
     
     @classmethod
     def get_by_id(cls, id):
-        """Get a model instance by ID."""
+        """Get a model instance by its ID."""
         return cls.query.get(id)
     
     @classmethod
     def get_all(cls):
-        """Get all model instances."""
+        """Get all instances of the model."""
         return cls.query.all()
     
     def to_dict(self):
@@ -85,11 +99,11 @@ class BaseModel(db.Model):
         }
 
 def get_db():
-    """Get database session."""
+    """Get the database session."""
     return db.session
 
 def close_db(e=None):
-    """Close database session."""
+    """Close the database session."""
     db.session.remove()
 
 def init_app(app):
