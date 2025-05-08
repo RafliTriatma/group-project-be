@@ -1,73 +1,93 @@
-from utils.database import db, BaseModel
+import uuid
 from datetime import datetime
+from sqlalchemy import Column, String, Float, Integer, Text, DateTime, Boolean, ForeignKey, Enum
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+from utils.database import db, BaseModel
 import enum
 
-class VoucherType(enum.Enum):
+class DiscountType(enum.Enum):
     PERCENTAGE = "percentage"
     FIXED_AMOUNT = "fixed_amount"
-    FREE_SHIPPING = "free_shipping"
+
+class VoucherType(enum.Enum):
+    SINGLE_USE = "single_use"
+    MULTIPLE_USE = "multiple_use"
+    UNLIMITED = "unlimited"
 
 class VoucherStatus(enum.Enum):
     ACTIVE = "active"
     INACTIVE = "inactive"
     EXPIRED = "expired"
+    USED = "used"
 
 class Voucher(BaseModel):
-    """Voucher model for promotions and discounts."""
+    """Voucher model."""
     __tablename__ = 'vouchers'
-    
+    __table_args__ = {'extend_existing': True}
+
     code = db.Column(db.String(50), unique=True, nullable=False)
-    type = db.Column(db.Enum(VoucherType), nullable=False)
-    value = db.Column(db.Numeric(10, 2), nullable=False)  # Percentage or fixed amount
-    min_purchase = db.Column(db.Numeric(10, 2), default=0)
-    max_discount = db.Column(db.Numeric(10, 2))
+    description = db.Column(db.Text, nullable=True)
+    discount_type = db.Column(db.Enum(DiscountType), nullable=False)
+    discount_value = db.Column(db.Float, nullable=False)  # Percentage or fixed amount
+    min_purchase_amount = db.Column(db.Float, nullable=True)  # Minimum order amount to use voucher
+    max_discount_amount = db.Column(db.Float, nullable=True)  # Maximum discount amount for percentage discounts
+    voucher_type = db.Column(db.Enum(VoucherType), nullable=False)
+    usage_limit = db.Column(db.Integer, nullable=True)  # For multiple_use vouchers
+    usage_count = db.Column(db.Integer, default=0)  # Track number of times used
     start_date = db.Column(db.DateTime, nullable=False)
     end_date = db.Column(db.DateTime, nullable=False)
-    status = db.Column(db.Enum(VoucherStatus), default=VoucherStatus.ACTIVE)
-    usage_limit = db.Column(db.Integer)  # Total number of times voucher can be used
-    usage_count = db.Column(db.Integer, default=0)  # Number of times voucher has been used
-    is_single_use = db.Column(db.Boolean, default=False)  # Can be used only once per user
-    
+    is_active = db.Column(db.Boolean, default=True)
+
+    # Relationships
+    orders = db.relationship('Order', back_populates='voucher')
+
     def to_dict(self):
         """Convert voucher instance to dictionary."""
         data = super().to_dict()
         data.update({
             'code': self.code,
-            'type': self.type.value if self.type else None,
-            'value': float(self.value) if self.value else 0,
-            'min_purchase': float(self.min_purchase) if self.min_purchase else 0,
-            'max_discount': float(self.max_discount) if self.max_discount else None,
-            'start_date': self.start_date.isoformat() if self.start_date else None,
-            'end_date': self.end_date.isoformat() if self.end_date else None,
-            'status': self.status.value if self.status else None,
+            'description': self.description,
+            'discount_type': self.discount_type.value if self.discount_type else None,
+            'discount_value': self.discount_value,
+            'min_purchase_amount': self.min_purchase_amount,
+            'max_discount_amount': self.max_discount_amount,
+            'voucher_type': self.voucher_type.value if self.voucher_type else None,
             'usage_limit': self.usage_limit,
             'usage_count': self.usage_count,
-            'is_single_use': self.is_single_use
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'end_date': self.end_date.isoformat() if self.end_date else None,
+            'is_active': self.is_active
         })
         return data
 
 class Discount(BaseModel):
-    """Discount model for product-specific discounts."""
+    """Discount model."""
     __tablename__ = 'discounts'
-    
-    product_id = db.Column(db.String(36), db.ForeignKey('products.id'), nullable=False)
-    type = db.Column(db.Enum(VoucherType), nullable=False)
-    value = db.Column(db.Numeric(10, 2), nullable=False)  # Percentage or fixed amount
+    __table_args__ = {'extend_existing': True}
+
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    discount_type = db.Column(db.Enum(DiscountType), nullable=False)
+    discount_value = db.Column(db.Float, nullable=False)  # Percentage or fixed amount
+    min_purchase_amount = db.Column(db.Float, nullable=True)
+    max_discount_amount = db.Column(db.Float, nullable=True)
     start_date = db.Column(db.DateTime, nullable=False)
     end_date = db.Column(db.DateTime, nullable=False)
-    status = db.Column(db.Enum(VoucherStatus), default=VoucherStatus.ACTIVE)
-    min_quantity = db.Column(db.Integer, default=1)  # Minimum quantity to get discount
-    
+    is_active = db.Column(db.Boolean, default=True)
+
     def to_dict(self):
         """Convert discount instance to dictionary."""
         data = super().to_dict()
         data.update({
-            'product_id': self.product_id,
-            'type': self.type.value if self.type else None,
-            'value': float(self.value) if self.value else 0,
+            'name': self.name,
+            'description': self.description,
+            'discount_type': self.discount_type.value if self.discount_type else None,
+            'discount_value': self.discount_value,
+            'min_purchase_amount': self.min_purchase_amount,
+            'max_discount_amount': self.max_discount_amount,
             'start_date': self.start_date.isoformat() if self.start_date else None,
             'end_date': self.end_date.isoformat() if self.end_date else None,
-            'status': self.status.value if self.status else None,
-            'min_quantity': self.min_quantity
+            'is_active': self.is_active
         })
         return data 

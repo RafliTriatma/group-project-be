@@ -1,9 +1,17 @@
-from utils.database import db, BaseModel
+"""Cart and wishlist models for the e-commerce application."""
+
+import uuid
 from datetime import datetime
+from sqlalchemy import Column, String, Float, Integer, Text, DateTime, Boolean, ForeignKey, Enum, CheckConstraint, JSON
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+from utils.database import db, BaseModel
+import enum
 
 class Cart(BaseModel):
     """Shopping cart model."""
     __tablename__ = 'carts'
+    __table_args__ = {'extend_existing': True}
     
     user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     total_amount = db.Column(db.Numeric(10, 2), default=0)
@@ -22,29 +30,33 @@ class Cart(BaseModel):
         return data
 
 class CartItem(BaseModel):
-    """Shopping cart item model."""
+    """Cart item model for shopping cart items."""
     __tablename__ = 'cart_items'
+    __table_args__ = {'extend_existing': True}
     
-    cart_id = db.Column(db.String(36), db.ForeignKey('carts.id'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     product_id = db.Column(db.String(36), db.ForeignKey('products.id'), nullable=False)
-    quantity = db.Column(db.Integer, default=1)
-    price = db.Column(db.Numeric(10, 2), nullable=False)  # Price at time of adding to cart
+    quantity = db.Column(db.Integer, default=1, nullable=False)
+    
+    # Relationships
+    user = db.relationship('User', backref='cart_items')
+    product = db.relationship('Product', backref='cart_items')
     
     def to_dict(self):
         """Convert cart item instance to dictionary."""
         data = super().to_dict()
         data.update({
-            'cart_id': self.cart_id,
+            'user_id': self.user_id,
             'product_id': self.product_id,
             'quantity': self.quantity,
-            'price': float(self.price) if self.price else 0,
-            'subtotal': float(self.price * self.quantity) if self.price else 0
+            'product': self.product.to_dict() if self.product else None
         })
         return data
 
 class Wishlist(BaseModel):
     """Wishlist model."""
     __tablename__ = 'wishlists'
+    __table_args__ = {'extend_existing': True}
     
     user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     
@@ -61,19 +73,23 @@ class Wishlist(BaseModel):
         return data
 
 class WishlistItem(BaseModel):
-    """Wishlist item model."""
+    """Wishlist item model for user wishlists."""
     __tablename__ = 'wishlist_items'
+    __table_args__ = {'extend_existing': True}
     
-    wishlist_id = db.Column(db.String(36), db.ForeignKey('wishlists.id'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     product_id = db.Column(db.String(36), db.ForeignKey('products.id'), nullable=False)
-    added_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='wishlist_items')
+    product = db.relationship('Product', backref='wishlist_items')
     
     def to_dict(self):
         """Convert wishlist item instance to dictionary."""
         data = super().to_dict()
         data.update({
-            'wishlist_id': self.wishlist_id,
+            'user_id': self.user_id,
             'product_id': self.product_id,
-            'added_at': self.added_at.isoformat() if self.added_at else None
+            'product': self.product.to_dict() if self.product else None
         })
         return data 

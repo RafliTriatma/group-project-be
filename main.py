@@ -8,8 +8,19 @@ def main():
     load_dotenv()
     
     # Create Flask application with the specified environment
-    env = os.getenv('FLASK_ENV', 'development')
-    app = create_app(env)
+    env = os.getenv('FLASK_ENV', 'development').lower()
+    if env not in ['development', 'testing', 'production']:
+        env = 'development'
+    
+    # Map environment to configuration name
+    config_map = {
+        'development': 'development',
+        'testing': 'testing',
+        'production': 'production'
+    }
+    config_name = config_map.get(env, 'development')
+    
+    app = create_app(config_name)
     
     # Run the application
     app.run(

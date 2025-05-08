@@ -14,6 +14,7 @@ class UserRole(enum.Enum):
 class User(BaseModel):
     """User model for authentication and user management."""
     __tablename__ = 'users'
+    __table_args__ = {'extend_existing': True}
     
     # Basic information
     username = db.Column(db.String(50), unique=True, nullable=False)
@@ -43,6 +44,7 @@ class User(BaseModel):
     wishlist = db.relationship('Wishlist', backref='user', uselist=False, lazy=True)
     reviews = db.relationship('Review', backref='user', lazy=True)
     ratings = db.relationship('Rating', backref='user', lazy=True)
+    auth_tokens = db.relationship('AuthToken', back_populates='user', lazy=True)
     
     def to_dict(self):
         """Convert user instance to dictionary."""
@@ -68,6 +70,7 @@ class User(BaseModel):
 class UserVerification(BaseModel):
     """Model for storing user verification tokens."""
     __tablename__ = 'user_verifications'
+    __table_args__ = {'extend_existing': True}
     
     user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     token = db.Column(db.String(255), nullable=False)
@@ -86,28 +89,25 @@ class UserVerification(BaseModel):
         })
         return data
 
-class AuthToken(db.Model):
+class AuthToken(BaseModel):
     __tablename__ = 'auth_tokens'
+    __table_args__ = {'extend_existing': True}
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
-    token = Column(String(255), unique=True, nullable=False)
-    token_type = Column(String(20), nullable=False)  # access, refresh, etc.
-    expires_at = Column(DateTime, nullable=False)
-    is_revoked = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    token = db.Column(db.String(255), unique=True, nullable=False)
+    token_type = db.Column(db.String(20), nullable=False)  # access, refresh, etc.
+    expires_at = db.Column(db.DateTime, nullable=False)
+    is_revoked = db.Column(db.Boolean, default=False)
 
     # Relationship with User
-    user = relationship('User', back_populates='auth_tokens')
+    user = db.relationship('User', back_populates='auth_tokens')
 
     def to_dict(self):
-        return {
-            'id': str(self.id),
-            'user_id': str(self.user_id),
+        data = super().to_dict()
+        data.update({
+            'user_id': self.user_id,
             'token_type': self.token_type,
             'expires_at': self.expires_at.isoformat() if self.expires_at else None,
-            'is_revoked': self.is_revoked,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        } 
+            'is_revoked': self.is_revoked
+        })
+        return data 

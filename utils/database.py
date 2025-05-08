@@ -6,6 +6,7 @@ from flask_migrate import Migrate
 import logging
 from datetime import datetime
 import uuid
+import os
 
 # Define naming convention for constraints
 convention = {
@@ -24,9 +25,21 @@ migrate = Migrate()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def ensure_db_directory(db_path):
+    """Ensure the database directory exists."""
+    if db_path.startswith('sqlite:///'):
+        db_dir = os.path.dirname(db_path[10:])  # Remove 'sqlite:///' prefix
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir)
+            logger.info(f"Created database directory: {db_dir}")
+
 def init_db(app):
     """Initialize the database with the Flask app."""
     try:
+        # Ensure database directory exists for SQLite
+        db_uri = app.config['SQLALCHEMY_DATABASE_URI']
+        ensure_db_directory(db_uri)
+        
         # Initialize SQLAlchemy with the app
         db.init_app(app)
         
