@@ -12,4 +12,10 @@ dependencies = [
     "pyjwt>=2.8.0",
     "psycopg2-binary>=2.9.9",
     "flask-cors>=5.0.1",
+    "flask-jwt-extended>=4.7.1",
+    "flask-migrate>=4.1.0",
+    "dotenv>=0.9.9",
 ]
+
+[tool.dotenv]
+path = ".env"
